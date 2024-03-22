@@ -1,3 +1,8 @@
+
+''' esse codigo faz o mouse movimentar e rolar paginas com pausas
+    quando usado na pagina do pintrest, faz seu tempo de atividade aumentar
+    e por consquencia aumenta suas vizualizações de  forma sutil
+'''
 import pyautogui
 import time
 import random
@@ -22,7 +27,6 @@ def main():
         pyautogui.scroll(-1000)
         time.sleep(1)
 
-        
         move_mouse_randomly()
         time.sleep(1)
         move_mouse_randomly()
