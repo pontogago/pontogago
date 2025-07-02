@@ -1,0 +1,54 @@
+import asyncio
+from bleak import BleakScanner, BleakClient
+import mido
+import rtmidi
+
+MIDI_SERVICE_UUID = "03b80e5a-ede8-4b33-a751-6ce34ec4c700"
+MIDI_CHAR_UUID = "7772e5db-3868-4112-a1a9-f2669d106bf3"
+
+# Abre a porta MIDI criada no loopMIDI
+virtual_port = mido.open_output("gago 1")
+
+def ble_midi_to_mido(data):
+    # Pula os headers de timestamp
+    for i in range(1, len(data)):
+        if data[i] & 0x80:
+            try:
+                msg = mido.Message.from_bytes(data[i:i+3])
+                return msg
+            except:
+                continue
+    return None
+
+def handle_midi_data(sender, data):
+    msg = ble_midi_to_mido(data)
+    if msg:
+        print("🎹 Enviando:", msg)
+        virtual_port.send(msg)
+
+async def main():
+    print("🔍 Procurando dispositivos BLE-MIDI...")
+    devices = await BleakScanner.discover(timeout=5)
+    midi_devices = [d for d in devices if MIDI_SERVICE_UUID.lower() in (s.lower() for s in d.metadata.get("uuids", []))]
+
+    if not midi_devices:
+        print("❌ Nenhum BLE-MIDI encontrado.")
+        return
+
+    device = midi_devices[0]
+    print(f"✅ Conectando a {device.name} ({device.address})...")
+
+    async with BleakClient(device) as client:
+        print("🔗 Conectado!")
+        await client.start_notify(MIDI_CHAR_UUID, handle_midi_data)
+        print("📡 Transmitindo para porta 'BLE-MIDI Bridge' (loopMIDI)... Ctrl+C para sair.")
+
+        try:
+            while True:
+                await asyncio.sleep(1)
+        except KeyboardInterrupt:
+            print("🛑 Encerrando...")
+            await client.stop_notify(MIDI_CHAR_UUID)
+
+if __name__ == "__main__":
+    asyncio.run(main())
